@@ -55,41 +55,44 @@ def main():
         # time out after 60 seconds (specify timeout_sec parameter to override).
         print('Discovering services...')
         UART.discover(device)
-
         # Once service discovery is complete create an instance of the service
         # and start interacting with it.
         uart = UART(device)
-
         curr_time = time.localtime()
         name = str(curr_time.tm_mon) + '_' + str(curr_time.tm_mday) + '_' + str(curr_time.tm_year) + '_griptest' +  '.csv'
+        print('made it past time')
+        print(name)
 
-        f = open(name, 'w', newline)
-        writer = csv.writer(f)
-        writer.writerow( ('Absolute Time', 'Time Since Beginning (sec)', 'Index', 'Grip Reading') )
-        index = 0;
+        with open(str(name), 'w') as csvfile:
+            print('made it past fileopen')
+            fwriter = csv.writer(csvfile, delimiter=' ', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+            print('made it past creating writer')
+            fwriter.writerow( ('Absolute Time', 'Time Since Beginning (sec)', 'Index', 'Grip Reading') )
+            index = 0;
+            print('made it past csv')
+            # Write a string to the TX characteristic.
+            uart.write(b'Hello world!\r\n')
+            print('made it past write')
+            print("Sent 'Hello world!' to the device.")
 
-        # Write a string to the TX characteristic.
-        uart.write(b'Hello world!\r\n')
-        print("Sent 'Hello world!' to the device.")
+            # Now wait up to one minute to receive data from the device.
+            print('Waiting up to 60 seconds to receive data from the device...')
+            received = uart.read(timeout_sec=60)
+            start_time = time.time()
+            if received is not None:
+                # Received data, print it out.
+                print('Received: {0}'.format(received))
 
-        # Now wait up to one minute to receive data from the device.
-        print('Waiting up to 60 seconds to receive data from the device...')
-        received = uart.read(timeout_sec=60)
-        start_time = time.time()
-        if received is not None:
-            # Received data, print it out.
-            print('Received: {0}'.format(received))
+                while (1):
+                    t1 = time.time()
+                    writer.writerow((time.strftime("%Y-%m-%d %H:%M:%S", gmtime()),str(index),str(t1-start_time),'{0}'.format(received)), str(received))
+                    index += 1
 
-            while (received != "STOP"):
-                t1 = time.time()
-                writer.writerow((time.strftime("%Y-%m-%d %H:%M:%S", gmtime()),str(index),str(t1-start_time),'{0}'.format(received)), str(received))
-                index += 1
+                    received = uart.read(timeout_sec=10)
 
-                received = uart.read(timeout_sec=10)
-
-        else:
-            # Timeout waiting for data, None is returned.
-            print('Received no data!')
+            else:
+                # Timeout waiting for data, None is returned.
+                print('Received no data!')
     finally:
         # Make sure device is disconnected on exit.
         device.disconnect()
