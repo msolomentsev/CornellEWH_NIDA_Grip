@@ -80,9 +80,9 @@ def main():
             # Received data, print it out.
             print('Received: {0}'.format(received))
 
-            while (received != "STOP")
+            while (received != "STOP"):
                 t1 = time.time()
-                writer.writerow((time.strftime("%Y-%m-%d %H:%M:%S", gmtime()),str(index),str(t1-start_time),'{0}'.format(received)))
+                writer.writerow((time.strftime("%Y-%m-%d %H:%M:%S", gmtime()),str(index),str(t1-start_time),'{0}'.format(received)), str(received))
                 index += 1
 
                 received = uart.read(timeout_sec=10)
