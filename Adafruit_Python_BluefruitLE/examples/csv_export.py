@@ -65,7 +65,8 @@ def main():
 
         f = open(name, 'w', newline)
         writer = csv.writer(f)
-        writer.writerow( ('Absolute Time', 'Time Since Beginning', 'Grip Reading') )
+        writer.writerow( ('Absolute Time', 'Time Since Beginning (sec)', 'Index', 'Grip Reading') )
+        index = 0;
 
         # Write a string to the TX characteristic.
         uart.write(b'Hello world!\r\n')
@@ -74,11 +75,16 @@ def main():
         # Now wait up to one minute to receive data from the device.
         print('Waiting up to 60 seconds to receive data from the device...')
         received = uart.read(timeout_sec=60)
+        start_time = time.time()
         if received is not None:
             # Received data, print it out.
             print('Received: {0}'.format(received))
 
             while (received != "STOP")
+                t1 = time.time()
+                writer.writerow((time.strftime("%Y-%m-%d %H:%M:%S", gmtime()),str(index),str(t1-start_time),'{0}'.format(received)))
+                index += 1
+
                 received = uart.read(timeout_sec=10)
 
         else:
