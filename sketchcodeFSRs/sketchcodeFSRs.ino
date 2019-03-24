@@ -1,8 +1,8 @@
   #include <math.h>       /* pow */
   
-  int Vout1 = A1;
-  int Vout2 = A2;
-  int Vout3 = A3;
+  int Vout1 = A3;
+  int Vout2 = A4;
+  int Vout3 = A5;
   float Vin = 1024; // 3.3V in units of V, assumed to the same for all of the FSRs
   float R1 = 5100; // in units of Ohms, same for all FSRs
   float FSR_1 = 0;
