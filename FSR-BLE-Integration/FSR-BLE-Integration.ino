@@ -1,4 +1,14 @@
 #include <math.h>       /* pow */
+#include <Arduino.h>
+#include <SPI.h>
+#include "Adafruit_BLE.h"
+#include "Adafruit_BluefruitLE_SPI.h"
+#include "Adafruit_BluefruitLE_UART.h"
+#include "BluefruitConfig.h"
+
+#if SOFTWARE_SERIAL_AVAILABLE
+  #include <SoftwareSerial.h>
+#endif
 
 int Vout1 = A3;
 int Vout2 = A4;
@@ -8,23 +18,15 @@ float R1 = 5100; // in units of Ohms, same for all FSRs
 float FSR_1 = 0;
 float FSR_2 = 0;
 float FSR_3 = 0;
+float FSR_avg = 0;
 float a = 9622;
 float b = -1.357;
 int force1 = 0;
 int force2 = 0;
 int force3 = 0;
-
-#include <Arduino.h>
-#include <SPI.h>
-#include "Adafruit_BLE.h"
-#include "Adafruit_BluefruitLE_SPI.h"
-#include "Adafruit_BluefruitLE_UART.h"
-
-#include "BluefruitConfig.h"
-
-#if SOFTWARE_SERIAL_AVAILABLE
-  #include <SoftwareSerial.h>
-#endif
+int forceavg;
+String ATBase = "AT+BLEUARTTX=";
+String message = "0";
 
 /*=========================================================================
     APPLICATION SETTINGS
@@ -93,8 +95,7 @@ void setup() {
   delay(500);
 
   Serial.begin(115200);
-  Serial.println(F("Adafruit Bluefruit Command <-> Data Mode Example"));
-  Serial.println(F("------------------------------------------------"));
+  Serial.println(F("Adafruit Bluefruit Command"));
 
   /* Initialise the module */
   Serial.print(F("Initialising the Bluefruit LE module: "));
@@ -150,44 +151,25 @@ void setup() {
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
   // For FSR 1
   FSR_1 = (( R1 * Vout1 ) / Vin ) / ( 1 - ( Vout1 / Vin ));
-  force1 = int(pow(a * FSR_1, b));
+  force1 = (pow(a * FSR_1, b));
   // For FSR 2
   FSR_2 = (( R1 * Vout2 ) / Vin ) / ( 1 - ( Vout2 / Vin ));
-  force2 = int(pow(a * FSR_2, b));
+  force2 = (pow(a * FSR_2, b));
   // For FSR 3
   FSR_3 = (( R1 * Vout3 ) / Vin ) / ( 1 - ( Vout3 / Vin ));
-  force3 = int(pow(a * FSR_3, b));
+  force3 = (pow(a * FSR_3, b));
+  
+  char command[BUFSIZE+1];
+  forceavg = int((force1+force2+force3)/3);
+  message = ATBase + String(forceavg);
 
-  // from bleuart loop
-    //n = Serial.readBytes(inputs, BUFSIZE);
-    //inputs[n] = 0;
-    // Send characters to Bluefruit
-    Serial.print("Sending force1: ");
-    Serial.println(force1);
-    Serial.print("Sending force2: ");
-    Serial.println(force2);
-    Serial.print("Sending force3: ");
-    Serial.println(force3);
+  message.toCharArray(command, BUFSIZE+1); 
+  
+  // Send input data to host via Bluefruit
+  ble.println(command);
 
-    // Send input data to host via Bluefruit
-    ble.print(force1);
-    ble.print(force2);
-    ble.print(force3);
-  }
-
-  // Echo received data
-  while ( ble.available() )
-  {
-    int c = ble.read();
-
-    Serial.print((char)c);
-
-    // Hex output too, helps w/debugging!
-    Serial.print(" [0x");
-    if (c <= 0xF) Serial.print(F("0"));
-    Serial.print(c, HEX);
-    Serial.print("] ");
+  // Check response status
+  ble.waitForOK();
 }
