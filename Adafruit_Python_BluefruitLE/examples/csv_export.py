@@ -5,6 +5,7 @@
 import Adafruit_BluefruitLE
 import csv
 import time
+import math
 from Adafruit_BluefruitLE.services import UART
 
 
@@ -60,19 +61,14 @@ def main():
         uart = UART(device)
         curr_time = time.localtime()
         name = str(curr_time.tm_mon) + '_' + str(curr_time.tm_mday) + '_' + str(curr_time.tm_year) + '_griptest' +  '.csv'
-        print('made it past time')
         print(name)
 
         with open(str(name), 'w') as csvfile:
-            print('made it past fileopen')
-            fwriter = csv.writer(csvfile, delimiter=' ', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-            print('made it past creating writer')
-            fwriter.writerow( ('Absolute Time', 'Time Since Beginning (sec)', 'Index', 'Grip Reading') )
-            index = 0;
-            print('made it past csv')
+            fwriter = csv.writer(csvfile, delimiter=',', quotechar=',', quoting=csv.QUOTE_MINIMAL)
+            fwriter.writerow( ('Absolute Time', 'Index', 'Time Since Beginning (sec)','Spacer', 'Grip Reading (RAW)', 'Grip Reading (Processed)') )
+            ind = 0;
             # Write a string to the TX characteristic.
             uart.write(b'Hello world!\r\n')
-            print('made it past write')
             print("Sent 'Hello world!' to the device.")
 
             # Now wait up to one minute to receive data from the device.
@@ -82,13 +78,29 @@ def main():
             if received is not None:
                 # Received data, print it out.
                 print('Received: {0}'.format(received))
-
+                #received_data = float(received[14:])
+                received_data = 0
+                calculation = 0
                 while (1):
-                    t1 = time.time()
-                    writer.writerow((time.strftime("%Y-%m-%d %H:%M:%S", gmtime()),str(index),str(t1-start_time),'{0}'.format(received)), str(received))
-                    index += 1
+                    if (received_data != 0):
+                        t1 = time.time()
+                        fwriter.writerow((time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),str(ind),str(t1-start_time), str(received_data), calculation))
+                        ind = ind + 1
 
                     received = uart.read(timeout_sec=10)
+                    #received_data = int(received[12:])
+                    print(received)
+                    #print(received[:13])
+                    #print(received[13:])
+                    time.sleep(.1)
+                    if (received[:13] == "AT+BLEUARTTX="):
+                        received_data = received[13:]
+                        try:
+                            calculation = math.pow(math.fabs(float(9622) * float(received_data)), -1.357)
+                        except ValueError:
+                            calculation = 0
+                    else:
+                        received_data = 0
 
             else:
                 # Timeout waiting for data, None is returned.

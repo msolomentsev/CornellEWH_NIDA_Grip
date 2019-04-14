@@ -1,17 +1,35 @@
-
-
 #include <math.h>       /* pow */
 #include <Arduino.h>
 #include <SPI.h>
 #include "Adafruit_BLE.h"
 #include "Adafruit_BluefruitLE_SPI.h"
 #include "Adafruit_BluefruitLE_UART.h"
-
 #include "BluefruitConfig.h"
 
 #if SOFTWARE_SERIAL_AVAILABLE
   #include <SoftwareSerial.h>
 #endif
+
+int in1 = A3;
+int in2 = A4;
+int in3 = A5;
+int Vout1 = 0;
+int Vout2 = 0;
+int Vout3 = 0;
+float Vin = 1024; // 3.3V in units of V, assumed to the same for all of the FSRs
+float R1 = 5100; // in units of Ohms, same for all FSRs
+float FSR_1 = 0;
+float FSR_2 = 0;
+float FSR_3 = 0;
+float FSR_avg = 0;
+float a = 9622;
+float b = -1.357;
+int force1 = 0;
+int force2 = 0;
+int force3 = 0;
+int forceavg;
+String ATBase = "AT+BLEUARTTX=";
+String message = "0";
 
 /*=========================================================================
     APPLICATION SETTINGS
@@ -69,20 +87,6 @@ Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_
 //                             BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_RST);
 
 
-int Vout1 = A3;
-int Vout2 = A4;
-int Vout3 = A5;
-float Vin = 1024; // 3.3V in units of V, assumed to the same for all of the FSRs
-float R1 = 5100; // in units of Ohms, same for all FSRs
-float FSR_1 = 0;
-float FSR_2 = 0;
-float FSR_3 = 0;
-float a = 9622;
-float b = -1.357;
-int force1 = 0;
-int force2 = 0;
-int force3 = 0;
-
 // A small helper
 void error(const __FlashStringHelper*err) {
   Serial.println(err);
@@ -94,8 +98,7 @@ void setup() {
   delay(500);
 
   Serial.begin(115200);
-  Serial.println(F("Adafruit Bluefruit Command <-> Data Mode Example"));
-  Serial.println(F("------------------------------------------------"));
+  Serial.println(F("Adafruit Bluefruit Command"));
 
   /* Initialise the module */
   Serial.print(F("Initialising the Bluefruit LE module: "));
@@ -122,19 +125,6 @@ void setup() {
   /* Print Bluefruit information */
   ble.info();
 
-  Serial.println(F("Please use Adafruit Bluefruit LE app to connect in UART mode"));
-  Serial.println(F("Then Enter characters to send to Bluefruit"));
-  Serial.println();
-
-  ble.verbose(false);  // debug info is a little annoying after this point!
-
-  /* Wait for connection */
-  while (! ble.isConnected()) {
-      delay(500);
-  }
-
-  Serial.println(F("******************************"));
-
   // LED Activity command is only supported from 0.6.6
   if ( ble.isVersionAtLeast(MINIMUM_FIRMWARE_VERSION) )
   {
@@ -151,46 +141,32 @@ void setup() {
 }
 
 void loop() {
-    // put your main code here, to run repeatedly:
-    // For FSR 1
-    FSR_1 = (( R1 * Vout1 ) / Vin ) / ( 1 - ( Vout1 / Vin ));
-    force1 = int(pow(a * FSR_1, b));
-    // For FSR 2
-    FSR_2 = (( R1 * Vout2 ) / Vin ) / ( 1 - ( Vout2 / Vin ));
-    force2 = int(pow(a * FSR_2, b));
-    // For FSR 3
-    FSR_3 = (( R1 * Vout3 ) / Vin ) / ( 1 - ( Vout3 / Vin ));
-    force3 = int(pow(a * FSR_3, b));
-    
-    // from bleuart loop
 
-    //n = Serial.readBytes(inputs, BUFSIZE);
-    //inputs[n] = 0;
-    // Send characters to Bluefruit
-    Serial.print("Sending force1: ");
-    Serial.println(force1);
-    Serial.print("Sending force2: ");
-    Serial.println(force2);
-    Serial.print("Sending force3: ");
-    Serial.println(force3);
-
-    // Send input data to host via Bluefruit
-    ble.print(force1);
-    ble.print(force2);
-    ble.print(force3);
+  Vout1 = analogRead(in1);
+  Vout2 = analogRead(in2);
+  Vout3 = analogRead(in3);
   
+  // For FSR 1
+  FSR_1 = (( R1 * float(Vout1) ) / Vin ) / ( 1 - ( float(Vout1) / Vin ));
+  force1 = float(pow((a * FSR_1), b));
+  // For FSR 2
+  FSR_2 = (( R1 * float(Vout2) ) / Vin ) / ( 1 - ( float(Vout2) / Vin ));
+  force2 = (pow(a * FSR_2, b));
+  // For FSR 3
+  FSR_3 = (( R1 * float(Vout3) ) / Vin ) / ( 1 - ( float(Vout3) / Vin ));
+  force3 = (pow(a * FSR_3, b));
+  
+  char command[BUFSIZE+1];
+  //forceavg = int((force1+force2+force3)/3);
+  forceavg = int((FSR_1+FSR_2+FSR_3)/3);
+  
+  message = ATBase + String(forceavg);
 
-  // Echo received data
-  while ( ble.available() )
-  {
-    int c = ble.read();
+  message.toCharArray(command, BUFSIZE+1); 
+  Serial.println(command);
+  // Send input data to host via Bluefruit
+  ble.println(command);
 
-    Serial.print((char)c);
-
-    // Hex output too, helps w/debugging!
-    Serial.print(" [0x");
-    if (c <= 0xF) Serial.print(F("0"));
-    Serial.print(c, HEX);
-    Serial.print("] ");
-  }
+  // Check response status
+  ble.waitForOK();
 }
