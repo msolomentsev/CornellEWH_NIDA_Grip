@@ -10,9 +10,12 @@
   #include <SoftwareSerial.h>
 #endif
 
-int Vout1 = A3;
-int Vout2 = A4;
-int Vout3 = A5;
+int in1 = A3;
+int in2 = A4;
+int in3 = A5;
+int Vout1 = 0;
+int Vout2 = 0;
+int Vout3 = 0;
 float Vin = 1024; // 3.3V in units of V, assumed to the same for all of the FSRs
 float R1 = 5100; // in units of Ohms, same for all FSRs
 float FSR_1 = 0;
@@ -122,19 +125,6 @@ void setup() {
   /* Print Bluefruit information */
   ble.info();
 
-  Serial.println(F("Please use Adafruit Bluefruit LE app to connect in UART mode"));
-  Serial.println(F("Then Enter characters to send to Bluefruit"));
-  Serial.println();
-
-  ble.verbose(false);  // debug info is a little annoying after this point!
-
-  /* Wait for connection */
-  while (! ble.isConnected()) {
-      delay(500);
-  }
-
-  Serial.println(F("******************************"));
-
   // LED Activity command is only supported from 0.6.6
   if ( ble.isVersionAtLeast(MINIMUM_FIRMWARE_VERSION) )
   {
@@ -151,22 +141,29 @@ void setup() {
 }
 
 void loop() {
+
+  Vout1 = analogRead(in1);
+  Vout2 = analogRead(in2);
+  Vout3 = analogRead(in3);
+  
   // For FSR 1
-  FSR_1 = (( R1 * Vout1 ) / Vin ) / ( 1 - ( Vout1 / Vin ));
-  force1 = (pow(a * FSR_1, b));
+  FSR_1 = (( R1 * float(Vout1) ) / Vin ) / ( 1 - ( float(Vout1) / Vin ));
+  force1 = float(pow((a * FSR_1), b));
   // For FSR 2
-  FSR_2 = (( R1 * Vout2 ) / Vin ) / ( 1 - ( Vout2 / Vin ));
+  FSR_2 = (( R1 * float(Vout2) ) / Vin ) / ( 1 - ( float(Vout2) / Vin ));
   force2 = (pow(a * FSR_2, b));
   // For FSR 3
-  FSR_3 = (( R1 * Vout3 ) / Vin ) / ( 1 - ( Vout3 / Vin ));
+  FSR_3 = (( R1 * float(Vout3) ) / Vin ) / ( 1 - ( float(Vout3) / Vin ));
   force3 = (pow(a * FSR_3, b));
   
   char command[BUFSIZE+1];
-  forceavg = int((force1+force2+force3)/3);
+  //forceavg = int((force1+force2+force3)/3);
+  forceavg = int((FSR_1+FSR_2+FSR_3)/3);
+  
   message = ATBase + String(forceavg);
 
   message.toCharArray(command, BUFSIZE+1); 
-  
+  Serial.println(command);
   // Send input data to host via Bluefruit
   ble.println(command);
 
